@@ -1,0 +1,94 @@
+https://github.com/liuyi01/kubernetes-starter/blob/master/docs/2-kubernetes-simple.md
+二、基础集群部署 - kubernetes-simple
+
+1. 部署ETCD（主节点）
+netstat -antlp|grep 2379
+=====================================================================================
+2.APIServer（主节点）
+api-server:
+netstat -antlp|grep 6443
+netstat -antlp|grep 8080
+vim /lib/systemd/system/kube-apiserver.service
+其中--v=2  2:是info级别 可以调整的更大看到更多的日志
+
+=====================================================================================
+3. 部署ControllerManager(主节点):
+=====================================================================================
+4. 部署Scheduler(主节点):
+=====================================================================================
+5. 部署CalicoNode（所有节点）
+需要pull image有点慢 大概10分钟
+查看集群ippool情况(在master节点)
+calicoctl get ipPool -o yaml
+=====================================================================================
+6. 配置kubectl命令（任意节点--但我放master上）
+kubectl config set-cluster kubernetes  --server=http://192.168.1.110:8080
+kubectl config set-context kubernetes --cluster=kubernetes
+kubectl config use-context kubernetes
+vim ~/.kube/config
+kubectl get pods
+=====================================================================================
+7. 配置kubelet（工作节点）
+mkdir -p /var/lib/kubelet
+mkdir -p /etc/kubernetes
+mkdir -p /etc/cni/net.d
+
+#复制kubelet服务配置文件
+cp target/worker-node/kubelet.service /lib/systemd/system/
+#复制kubelet依赖的配置文件
+cp target/worker-node/kubelet.kubeconfig /etc/kubernetes/
+#复制kubelet用到的cni插件配置文件
+cp target/worker-node/10-calico.conf /etc/cni/net.d/
+systemctl enable kubelet.service
+service kubelet start
+journalctl -f -u kubelet
+=====================================================================================
+8.查看k8s nodes情况(master上 因为之前kubectl安装在这里了)
+=====================================================================================
+9.小试牛刀(在安装了kubectl的节点--我这里是master)
+kubectl version
+kubectl get pods
+kubectl get nodes
+kubectl get deployments(缩写:kubectl get deploy)
+kubectl describe  deploy kubernetes-bootcamp
+kubectl describe  pods pods名称
+
+启动一个pod玩一下
+kubectl run kubernetes-bootcamp --image=jocatalin/kubernetes-bootcamp:v1 --port=8080
+
+kubectl get pods
+NAME                                   READY                STATUS              RESTARTS   AGE
+kubernetes-bootcamp-6b7849c495-sdqwf   0/1(说明不能用)       ContainerCreating   0          1m
+kubectl get deployments
+NAME                  DESIRED   CURRENT   UP-TO-DATE   AVAILABLE               AGE
+kubernetes-bootcamp   1         1         1            0(说明不能用)           2m
+等30秒等待拉去镜像
+kubectl get pods
+NAME                                   READY     STATUS    RESTARTS         AGE
+kubernetes-bootcamp-6b7849c495-sdqwf   1/1(好了)       Running   0          3m
+kubectl get deployments
+NAME                  DESIRED   CURRENT   UP-TO-DATE   AVAILABLE     AGE
+kubernetes-bootcamp   1         1         1            1(好了)           3m
+kubectl get pods -o wide
+NAME                                   READY     STATUS    RESTARTS   AGE       IP              NODE
+kubernetes-bootcamp-6b7849c495-sdqwf   1/1       Running   0          7m        172.20.40.192   192.168.1.112
+
+删除部署任务:
+如果deployments确实错了,例如镜像名字错了
+kubectl delete deployments 部署的名字
+
+去192.168.1.112:
+docker ps
+
+查看系统当前的的错误,设置可以看到kubelet 在进行部署时候拉取镜像的进度
+journalctl -f
+
+现在在master:192.168.1.110无法访问到192.168.1.112上启动的pods服务
+解决办法1:
+master-terminal1:
+kubectl proxy
+master-terminal2:
+curl http://localhost:8001/api/v1/proxy/namespaces/default/pods/kubernetes-bootcamp-6b7849c495-sdqwf/
+Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-6b7849c495-sdqwf | v=1
+
+扩容缩容测试:TODO
