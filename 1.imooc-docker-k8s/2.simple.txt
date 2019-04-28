@@ -46,6 +46,7 @@ journalctl -f -u kubelet
 8.查看k8s nodes情况(master上 因为之前kubectl安装在这里了)
 =====================================================================================
 9.小试牛刀(在安装了kubectl的节点--我这里是master)
+9.1常见命令
 kubectl version
 kubectl get pods
 kubectl get nodes
@@ -53,9 +54,8 @@ kubectl get deployments(缩写:kubectl get deploy)
 kubectl describe  deploy kubernetes-bootcamp
 kubectl describe  pods pods名称
 
-启动一个pod玩一下
+9.2启动一个pod玩一下
 kubectl run kubernetes-bootcamp --image=jocatalin/kubernetes-bootcamp:v1 --port=8080
-
 kubectl get pods
 NAME                                   READY                STATUS              RESTARTS   AGE
 kubernetes-bootcamp-6b7849c495-sdqwf   0/1(说明不能用)       ContainerCreating   0          1m
@@ -73,17 +73,15 @@ kubectl get pods -o wide
 NAME                                   READY     STATUS    RESTARTS   AGE       IP              NODE
 kubernetes-bootcamp-6b7849c495-sdqwf   1/1       Running   0          7m        172.20.40.192   192.168.1.112
 
-删除部署任务:
+9.3删除部署任务:
 如果deployments确实错了,例如镜像名字错了
 kubectl delete deployments 部署的名字
-
 去192.168.1.112:
 docker ps
-
 查看系统当前的的错误,设置可以看到kubelet 在进行部署时候拉取镜像的进度
 journalctl -f
 
-现在在master:192.168.1.110无法访问到192.168.1.112上启动的pods服务
+9.4现在在master:192.168.1.110无法访问到192.168.1.112上启动的pods服务
 解决办法1:
 master-terminal1:
 kubectl proxy
@@ -91,4 +89,49 @@ master-terminal2:
 curl http://localhost:8001/api/v1/proxy/namespaces/default/pods/kubernetes-bootcamp-6b7849c495-sdqwf/
 Hello Kubernetes bootcamp! | Running on: kubernetes-bootcamp-6b7849c495-sdqwf | v=1
 
-扩容缩容测试:TODO
+9.5扩容缩容测试:
+扩容到4个(因为获取镜像需要大概1分钟)
+kubectl scale deploy kubernetes-bootcamp --replicas=4
+kubectl get deploy
+NAME                  DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+kubernetes-bootcamp   4         4         4            4           19h
+kubectl get pods
+kubectl get pods -o wide
+缩容回2个
+kubectl scale deploy kubernetes-bootcamp --replicas=2
+kubectl get deploy
+NAME                  DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+kubernetes-bootcamp   2         2         2            2           19h
+
+9.6 正常更新镜像
+不指定名字查看所有deployment:
+kubectl describe deploy|grep Image
+    Image:        jocatalin/kubernetes-bootcamp:v1
+
+deploy更新镜像:
+kubectl set image deploy kubernetes-bootcamp kubernetes-bootcamp=jocatalin/kubernetes-bootcamp:v2
+
+kubectl rollout status deploy kubernetes-bootcamp
+deployment "kubernetes-bootcamp" successfully rolled out
+
+kubectl describe deploy|grep Image
+    Image:        jocatalin/kubernetes-bootcamp:v2
+
+9.6 更新了错误的镜像
+加入更新的image不存在,则需要回滚images
+kubectl set image deploy kubernetes-bootcamp kubernetes-bootcamp=jocatalin/kubernetes-bootcamp:v20
+
+kubectl rollout status deploy kubernetes-bootcamp
+Waiting for rollout to finish: 1 old replicas are pending termination...
+
+解决方法1:
+kubectl rollout undo deploy kubernetes-bootcamp
+解决方法2:
+kubectl set image deploy kubernetes-bootcamp kubernetes-bootcamp=jocatalin/kubernetes-bootcamp:v2
+
+kubectl rollout status deploy kubernetes-bootcamp
+deployment "kubernetes-bootcamp" successfully rolled out
+
+9.7 通过配置文件来管理k8s cluster
+
+
