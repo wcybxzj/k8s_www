@@ -131,9 +131,12 @@ nginx-deployment      2         2         2            2           2m
 kube-proxy报错:
 journalctl -f -u kube-proxy
 proxier.go:1667 Failed to execute iptables-restore: exit status 1 (iptables-restore: invalid option -- '5'
-问题原因是:k8s1.9有bug不解决了
+问题原因是:k8s1.9有bug
 https://github.com/andrewhowdencom/kubernetes/commit/36a71f8e52e73a8fd27b84f854dfcabd5b9ce1b6
 k8s/iptables.go 代码中iptables-restore  -w5 而代码是-w 5
+下载v1.14.0的kube-proxy
+https://storage.googleapis.com/kubernetes-release/release/v1.14.0/bin/linux/amd64/kube-proxy
+替换掉原来/root/bin 下的kube-proxy
 
 10. 为集群增加dns功能 - kube-dns（app）
 
